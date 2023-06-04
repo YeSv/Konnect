@@ -1,0 +1,130 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: konnect-config
+data:
+  actions.yaml: |
+    application:
+      Konnect:
+        instances:
+          Local:
+            health:
+              checks:
+                - type: "mongo-collections"
+                  configuration:
+                    name: "mongo1"
+                    type: "mongo1"
+                    collections:
+                      - "Collection1"
+                      - "Collection2"
+                      - "Collection3"
+                - type: "mongo-collections"
+                  configuration:
+                    name: "mongo2"
+                    type: "mongo2"
+                    collections:
+                      - "Collection1"
+                      - "Collection2"
+                      - "KonnectOffsets"
+                      - "KonnectOrleansMembershipSingle"
+                      - "KonnectOrleansReminderV2"
+                - type: "kafka-cluster"
+                  configuration:
+                    name: "kafka1"
+                    type: "kafka1"
+            actions:
+              - configuration:
+                  name: "action1"
+                pipeline:
+                  type: "mm"
+                  configuration:
+                    parallelism: 5
+                  sink:
+                    configuration:
+                      isOrdered: true
+                      collection: "Collection1"
+                      connection:
+                        type: "mongo2"
+                  source:
+                    configuration:
+                      connection:
+                        type: "mongo1"
+                      changeStream:
+                        fullDocument: true
+                        mode: "UseToken"
+                        collection: "Collection1"
+                        pipeline:
+                          - >-
+                            { "$match": {
+                                "$or": 
+                                [
+                                    { "operationType": "delete" },
+                                    {
+                                        "$and": [
+                                            { "$or": [{ "fullDocument.Test": false }, { "updateDefinition.Test": true }] }
+                                            
+                                        ]
+                                    }
+                                ]
+                              }
+                            }
+                  offsets:
+                    configuration:
+                      id: "action1" 
+                      connection:
+                        type: "mongo2"
+                  processors:
+                    - type: "mongo-event-types"
+                    - type: "action1"
+              - configuration:
+                  name: "action2"
+                pipeline:
+                  type: "mk"
+                  configuration:
+                    parallelism: 4
+                  sink:
+                    configuration:
+                      connection:
+                        type: "kafka1"
+                        serializer: "Json"
+                        topics: 
+                          - "action2-topic"
+                  source:
+                    configuration:
+                      connection:
+                        type: "mongo1"
+                      changeStream:
+                        batchSize: 1000
+                        fullDocument: false
+                        collection: "Collection1"
+                        pipeline:
+                          - >-
+                            { "$match": { "operationType": { "$in": ["insert", "update", "replace", "delete"] } } }
+                  offsets:
+                    configuration:
+                      id: "action2" 
+                      connection:
+                        type: "mongo2"
+              - configuration:
+                  name: "action3"
+                pipeline:
+                  type: "km"
+                  configuration:
+                    parallelism: 4
+                  sink:
+                    configuration:
+                      collection: "Collection1"
+                      isOrdered: false
+                      upserts:
+                        insertAsReplace: false
+                      connection:
+                        type: "mongo2"
+                  source:
+                    configuration:
+                      connection: 
+                        type: "kafka1"
+                        topics: 
+                          - "action2-topic"
+                        config:
+                          group.id: "action3-upd5"
+                          auto.offset.reset: "earliest"

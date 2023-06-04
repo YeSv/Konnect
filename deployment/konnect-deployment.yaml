@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: konnect
+  namespace: local
+  labels:
+    apiName: konnect
+spec:
+  replicas: 3
+  revisionHistoryLimit: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      apiName: konnect
+  template:
+    metadata:
+      name: konnect
+      labels:
+        apiName: konnect
+        recreationTrigger: random59984
+    spec:
+      containers:
+      - image: {build an image of konnect}
+        imagePullPolicy: Always
+        name: konnect
+        env:
+        - name: Konnect_INSTANCE_NAME
+          value: "Local"
+        - name: DOTNET_gcServer
+          value: "1"
+        - name: DOTNET_gcConcurrent
+          value: "0"
+        - name: DOTNET_GCHighMemPercent
+          value: "0x3C"
+        - name: ASPNETCORE_URLS
+          value: "http://+:80"
+        resources:
+          requests:
+            memory: "3Gi"
+            cpu: "0.05"
+          limits:
+            memory: "3Gi"
+        readinessProbe:
+          httpGet:
+            path: /healthcheck        # you can replace it your healthcheck API path
+            port: 80            # you can replace it with your healthcheck's API port 
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 5
+        livenessProbe:
+          httpGet:
+            path: /healthcheck        # you can replace it your healthcheck API path
+            port: 80            # you can replace it with your healthcheck's API port 
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 3
+        volumeMounts:    
+          - mountPath: "/app/actions/actions.yaml"
+            name: actions-config              
+            subPath: actions.yaml
+      volumes:
+        - name: actions-config
+          configMap:
+            name: konnect-config
+      restartPolicy: Always
+      nodeSelector:
+        beta.kubernetes.io/os: linux

@@ -1,0 +1,17 @@
+{
+  "profiles": {
+    "Run": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5228",
+      "environmentVariables": {
+        "DOTNET_gcServer": "1",
+        "DOTNET_gcConcurrent": "1",
+        "DOTNET_GCHeapHardLimit": "0x80000000",
+        "ASPNETCORE_ENVIRONMENT": "Local",
+        "Konnect_INSTANCE_NAME": "local"
+      }
+    }
+  }
+}
